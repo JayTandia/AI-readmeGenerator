@@ -6,6 +6,7 @@ export default function Home() {
   const [readme, setReadme] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [streamingStatus, setStreamingStatus] = useState('');
 
   const isValidGitHubUrl = (url) => {
     return url.includes('github.com') && url.includes('/');
@@ -24,27 +25,122 @@ export default function Home() {
     
     setLoading(true);
     setError('');
+    setStreamingStatus('');
     
     try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repoUrl: repoUrl.trim() })
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error);
+      try {
+        await handleStreamingGeneration();
+      } catch (streamError) {
+        console.warn('Streaming failed, falling back to regular generation:', streamError);
+        setStreamingStatus('⚠️ Streaming failed, using standard mode...');
+        await handleRegularGeneration();
       }
-
-      setReadme(data.readme);
     } catch (err) {
       setError(err.message);
       console.error('Generation error:', err);
     }
     
     setLoading(false);
+  };
+
+  const handleRegularGeneration = async () => {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repoUrl: repoUrl.trim() })
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error);
+    }
+
+    setReadme(data.readme);
+  };
+
+  const handleStreamingGeneration = async () => {
+    try {
+      const response = await fetch('/api/generate/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repoUrl: repoUrl.trim() })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start streaming');
+      }
+
+      if (!response.body) {
+        throw new Error('No response body received');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          
+          // Keep the last incomplete line in the buffer
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.trim() && line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.slice(6);
+                if (jsonStr.trim()) {
+                  const data = JSON.parse(jsonStr);
+                  
+                  switch (data.status) {
+                    case 'analyzing':
+                      setStreamingStatus('🔍 Analyzing repository...');
+                      break;
+                    case 'processing':
+                      setStreamingStatus(`⚡ ${data.message}`);
+                      break;
+                    case 'complete':
+                      if (data.readme) {
+                        setReadme(data.readme);
+                        setStreamingStatus('✅ README generated successfully!');
+                      } else {
+                        throw new Error('No README content received');
+                      }
+                      break;
+                                       case 'error':
+                     const errorMsg = data.error || 'Unknown error occurred';
+                     if (errorMsg.includes('rate limit')) {
+                       setStreamingStatus('⚠️ GitHub rate limit exceeded. Please wait a few minutes or add a GitHub token.');
+                       setError(errorMsg);
+                     } else {
+                       throw new Error(errorMsg);
+                     }
+                     break;
+                  }
+                }
+              } catch (parseError) {
+                console.error('Error parsing streaming data:', parseError);
+                // Don't throw here, just log and continue
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    } catch (error) {
+      console.error('Streaming generation error:', error);
+      throw new Error(`Streaming failed: ${error.message}`);
+    }
   };
 
   const downloadReadme = () => {
@@ -107,10 +203,16 @@ export default function Home() {
                 disabled={loading}
               />
             </div>
-            
+
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <p className="text-red-700">{error}</p>
+              </div>
+            )}
+
+            {streamingStatus && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-blue-700">{streamingStatus}</p>
               </div>
             )}
 
@@ -128,7 +230,7 @@ export default function Home() {
                   Generating README...
                 </span>
               ) : (
-                '🚀 Generate README'
+                '🚀 Generate README (Streaming)'
               )}
             </button>
           </div>
@@ -138,8 +240,12 @@ export default function Home() {
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
             <div className="space-y-4">
               <div className="animate-pulse">
-                <div className="text-lg font-medium text-gray-700">Analyzing your repository...</div>
-                <div className="text-sm text-gray-500 mt-2">This may take 30-60 seconds</div>
+                <div className="text-lg font-medium text-gray-700">
+                  {streamingStatus || '🚀 Starting README generation...'}
+                </div>
+                <div className="text-sm text-gray-500 mt-2">
+                  {streamingStatus ? 'Processing your repository...' : 'This may take 30-60 seconds'}
+                </div>
               </div>
               <div className="flex justify-center space-x-2">
                 <div className="bg-blue-500 h-2 w-2 rounded-full animate-bounce"></div>
@@ -177,9 +283,6 @@ export default function Home() {
           </div>
         )}
 
-        <div className="text-center mt-12 text-gray-500 text-sm">
-          <p>✨ Powered by AI • Built with Next.js • GitHub API</p>
-        </div>
       </div>
     </div>
   );

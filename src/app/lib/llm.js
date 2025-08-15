@@ -8,7 +8,7 @@ export async function generateReadmeWithLLM(repoInfo, files) {
   
   const prompt = createReadmePrompt(repoContext);
 
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   // Pass only the prompt string as required by Gemini
   const result = await model.generateContent([prompt]);
