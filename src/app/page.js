@@ -1,5 +1,7 @@
 'use client';
 import { useState } from 'react';
+import { TypingAnimation } from "@/components/magicui/typing-animation";
+import { RetroGrid } from "@/components/magicui/retro-grid";
 
 export default function Home() {
   const [repoUrl, setRepoUrl] = useState('');
@@ -172,21 +174,20 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
+    <div className="min-h-screen bg-gray-50 overflow-y-hidden overflow-x-hidden">
+    <RetroGrid />
+      <div className="max-w-6xl mx-auto px-4 mt-30">
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">
-            AutoReadmeGen
-          </h1>
+          <TypingAnimation className={'text-6xl font-bold text-gray-900 mb-4'}>AI Readme Generator 🤖</TypingAnimation>
           <p className="text-xl text-gray-600 mb-2">
             AI-powered README generator for GitHub repositories
           </p>
-          <p className="text-gray-500">
+          <p className="text-gray-500 text-sm">
             Just paste your GitHub repo URL and get a professional README in seconds
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-8 mb-8">
+        <div className="bg-white rounded-lg left-1.5 -translate-x-1.5 shadow-md p-8 mb-8 max-w-2xl mx-auto">
           <div className="space-y-4">
             <div>
               <label htmlFor="repo-url" className="block text-sm font-medium text-gray-700 mb-2">
@@ -219,7 +220,7 @@ export default function Home() {
             <button
               onClick={handleGenerate}
               disabled={loading || !repoUrl.trim()}
-              className="w-full px-8 py-4 bg-blue-600 text-white rounded-lg font-semibold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full px-8 py-4 bg-green-600 text-white rounded-lg font-semibold text-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -236,29 +237,9 @@ export default function Home() {
           </div>
         </div>
 
-        {loading && (
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <div className="space-y-4">
-              <div className="animate-pulse">
-                <div className="text-lg font-medium text-gray-700">
-                  {streamingStatus || '🚀 Starting README generation...'}
-                </div>
-                <div className="text-sm text-gray-500 mt-2">
-                  {streamingStatus ? 'Processing your repository...' : 'This may take 30-60 seconds'}
-                </div>
-              </div>
-              <div className="flex justify-center space-x-2">
-                <div className="bg-blue-500 h-2 w-2 rounded-full animate-bounce"></div>
-                <div className="bg-blue-500 h-2 w-2 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                <div className="bg-blue-500 h-2 w-2 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {readme && (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="bg-gray-100 px-6 py-4 border-b flex justify-between items-center">
+          <div className="bg-white rounded-lg shadow-md overflow-hidden z-10 relative mb-10">
+            <div className="bg-gray-100 px-6 py-4 border-b flex justify-between items-center max-h-72">
               <h2 className="text-xl font-semibold text-gray-800">📝 Generated README.md</h2>
               <div className="flex gap-3">
                 <button
@@ -276,13 +257,13 @@ export default function Home() {
               </div>
             </div>
             <div className="p-6">
-              <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-auto">
+              <div className="bg-gray-50 rounded-lg p-4 max-h-[600px] overflow-auto">
                 <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono">{readme}</pre>
               </div>
             </div>
           </div>
         )}
-
+        <div className="text-center absolute left-1/2 -translate-x-1/2 text-sm text-black-500 bottom-10">Made by <a href="https://github.com/JayTandia" className="underline">Jay Tandia</a></div>
       </div>
     </div>
   );
